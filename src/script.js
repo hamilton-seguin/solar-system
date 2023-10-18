@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import * as TWEEN from "@tweenjs/tween.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { Pane } from "tweakpane";
 
@@ -8,85 +9,146 @@ const pane = new Pane();
 // initialize the scene
 const scene = new THREE.Scene();
 
-//initialize the texture loader
+//initialize the textureloader
 const textureLoader = new THREE.TextureLoader();
+const cubeTextureLoader = new THREE.CubeTextureLoader();
+cubeTextureLoader.setPath("/textures/cubeMap/");
+
+//add textures
+const sunTexture = textureLoader.load("/textures/2k_sun.jpg");
+const mercuryTexture = textureLoader.load("/textures/2k_mercury.jpg");
+const venusTexture = textureLoader.load("/textures/2k_venus_surface.jpg");
+const earthTexture = textureLoader.load("/textures/2k_earth_daymap.jpg");
+const moonTexture = textureLoader.load("/textures/2k_moon.jpg");
+const marsTexture = textureLoader.load("/textures/2k_mars.jpg");
+
+// const backgroundCubeMap = cubeTextureLoader.load(["px.png", "nx.png", "py.png", "ny.png", "pz.png", "nz.png"]);
+const backgroundCubeMap = cubeTextureLoader.load(["nx.png", "px.png", "ny.png", "py.png", "nz.png", "pz.png"]);
+
+scene.background = backgroundCubeMap
 
 //initialize the sun mesh & texture
-const sunGeometry = new THREE.SphereGeometry(20, 32, 32);
-const sunMaterial = new THREE.MeshBasicMaterial();
-const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-scene.add(sun);
+const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+
+const sunMaterial = new THREE.MeshBasicMaterial({ map: sunTexture });
+const sun = new THREE.Mesh(sphereGeometry, sunMaterial);
 sunMaterial.side = THREE.DoubleSide;
+sun.scale.setScalar(4);
+scene.add(sun);
 
-const sunTexture = textureLoader.load("/textures/2k_sun.jpg");
-sunMaterial.map = sunTexture;
+// init other materials
+const mercuryMaterial = new THREE.MeshStandardMaterial({ map: mercuryTexture });
+const venusMaterial = new THREE.MeshStandardMaterial({ map: venusTexture });
+const earthMaterial = new THREE.MeshStandardMaterial({ map: earthTexture });
+const moonMaterial = new THREE.MeshStandardMaterial({ map: moonTexture });
+const marsMaterial = new THREE.MeshStandardMaterial({ map: marsTexture });
 
-// initialize the mercury mesh & texture
-const mercuryGeometry = new THREE.SphereGeometry(5 / 3, 32, 32);
-const mercuryMaterial = new THREE.MeshBasicMaterial();
-const mercury = new THREE.Mesh(mercuryGeometry, mercuryMaterial);
-scene.add(mercury);
-mercury.position.x = 38;
-mercury.position.z = -5;
+const planets = [
+  {
+    name: "Mercury",
+    radius: 0.5,
+    distance: 5.7, //10
+    speed: 0.01,
+    material: mercuryMaterial,
+  },
+  {
+    name: "Venus",
+    radius: 0.8,
+    distance: 16.2, //15
+    speed: 0.008,
+    material: venusMaterial,
+  },
+  {
+    name: "Earth",
+    radius: 1,
+    distance: 30, //20
+    speed: 0.005,
+    material: earthMaterial,
+    moons: [
+      {
+        name: "Moon",
+        radius: 0.3,
+        distance: 3,
+        speed: 0.01,
+        material: moonMaterial,
+      },
+    ],
+  },
+  {
+    name: "Mars",
+    radius: 0.7,
+    distance: 25,
+    speed: 0.006,
+    material: marsMaterial,
+    moons: [
+      {
+        name: "Phobos",
+        radius: 0.1,
+        distance: 2,
+        speed: 0.02,
+        material: moonMaterial,
+      },
+      {
+        name: "Deimos",
+        radius: 0.2,
+        distance: 3,
+        speed: 0.015,
+        material: moonMaterial,
+      },
+    ],
+  },
+];
 
-const mercuryTexture = textureLoader.load("/textures/2k_mercury.jpg");
-mercuryMaterial.map = mercuryTexture;
+const createPlanet = (planet) => {
+  const planetMesh = new THREE.Mesh(sphereGeometry, planet.material);
+  planetMesh.name = planet.name;
+  planetMesh.scale.setScalar(planet.radius);
+  planetMesh.position.x = planet.distance;
+  return planetMesh;
+};
 
-// initialize the venus mesh & texture
-const venusGeometry = new THREE.SphereGeometry(4.5, 32, 32);
-const venusMaterial = new THREE.MeshBasicMaterial();
-const venus = new THREE.Mesh(venusGeometry, venusMaterial);
-scene.add(venus);
-venus.position.x = 72;
-venus.position.z = -5 * 1.3;
+const createMoon = (moon) => {
+  const moonMesh = new THREE.Mesh(sphereGeometry, moon.material);
+  moonMesh.name = moon.name;
+  moonMesh.scale.setScalar(moon.radius);
+  moonMesh.position.x = moon.distance;
+  return moonMesh;
+};
 
-const venusTexture = textureLoader.load("/textures/2k_venus_surface.jpg");
-venusMaterial.map = venusTexture;
+const planetMeshes = planets.map((planet) => {
+  const planetMesh = createPlanet(planet);
+  scene.add(planetMesh);
 
-// initialize the earth mesh & texture
-const earthGeometry = new THREE.SphereGeometry(5, 32, 32);
-const earthMaterial = new THREE.MeshBasicMaterial();
-const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-scene.add(earth);
-earth.position.x = 100;
-earth.position.z = -5 * 1.5;
+  planet.moons &&
+    planet.moons.forEach((moon) => {
+      const moonMesh = createMoon(moon);
+      planetMesh.add(moonMesh);
+    });
+  return planetMesh;
+});
 
-const earthTexture = textureLoader.load("/textures/2k_earth_daymap.jpg");
-earthMaterial.map = earthTexture;
-
-// initialize the moon mesh & texture
-const moonGeometry = new THREE.SphereGeometry(1, 32, 32);
-const moonMaterial = new THREE.MeshBasicMaterial();
-const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-earth.add(moon); // moon is a child of earth
-moon.position.x = 2;
-moon.position.z = 9;
-moon.rotation.y = -5;
-moon.rotation.x = 0.05;
-
-const moonTexture = textureLoader.load("/textures/2k_moon.jpg");
-moonMaterial.map = moonTexture;
-
-// initialize the mars mesh & texture
-const marsGeometry = new THREE.SphereGeometry(2.5, 32, 32);
-const marsMaterial = new THREE.MeshBasicMaterial();
-const mars = new THREE.Mesh(marsGeometry, marsMaterial);
-scene.add(mars);
-mars.position.x = 152;
-mars.position.z = -5 * 1.7;
-
-const marsTexture = textureLoader.load("/textures/2k_mars.jpg");
-marsMaterial.map = marsTexture;
+// initialize the light
+const pointLight = new THREE.PointLight(0xffffff, 2);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+scene.add(pointLight, ambientLight);
 
 // initialize the camera
+
 const camera = new THREE.PerspectiveCamera(
   35,
   window.innerWidth / window.innerHeight,
   1,
   2000
 );
-camera.position.z = 300;
-camera.position.y = 5;
+camera.position.set(0, 55, 75);
+
+const paneCamera = pane.addFolder({ title: "Camera" });
+paneCamera.addBinding(camera, "position", {
+  x: { min: -200, max: 200, step: 1 },
+  y: { min: -200, max: 200, step: 1 },
+  z: { min: -200, max: 200, step: 1 },
+  label: "Camera Position",
+});
 
 // initialize the renderer
 const canvas = document.querySelector("canvas.threejs");
@@ -107,19 +169,66 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// // Add event listeners to each planet object
+// planetMeshes.forEach(planet => {
+//   planet.addEventListener('click', () => {
+//     // Smoothly transition the camera to the planet's position
+//     const tween = new TWEEN.Tween(camera.position)
+//       .to(planet.position, 1000)
+//       .easing(TWEEN.Easing.Quadratic.InOut)
+//       .start();
+
+//     // Zoom in on the planet
+//     const zoomTween = new TWEEN.Tween(camera)
+//       .to({
+//         fov: 30,
+//         position: planet.position.clone().add(new THREE.Vector3(0, 0, 100))
+//       }, 1000)
+//       .easing(TWEEN.Easing.Quadratic.InOut)
+//       .start();
+//   });
+// });
+
+// // Add a button to reset the camera
+// const resetButton = document.createElement('resetButton');
+
+// resetButton.textContent = 'Reset Camera';
+// resetButton.addEventListener('click', () => {
+//   const tween = new TWEEN.Tween(camera.position)
+//     .to({ x: 0, y: 0, z: 500 }, 1000)
+//     .easing(TWEEN.Easing.Quadratic.InOut)
+//     .start();
+
+//   const zoomTween = new TWEEN.Tween(camera)
+//     .to({
+//       fov: 75,
+//       position: new THREE.Vector3(0, 0, 500)
+//     }, 1000)
+//     .easing(TWEEN.Easing.Quadratic.InOut)
+//     .start();
+// });
+// document.body.appendChild(resetButton);
+
 // initialize a clock
 const clock = new THREE.Clock();
 
 // render loop
 const renderloop = () => {
+  sun.rotation.y += 0.0015;
   const elapsedTime = clock.getElapsedTime();
-  earth.rotation.y += 0.04;
-  earth.position.x = Math.sin(elapsedTime * 0.2) * 110;
-  earth.position.z = Math.cos(elapsedTime * 0.2) * 110;
-
-  moon.position.x = Math.sin(elapsedTime * 0.1) * 10;
-  moon.position.z = Math.cos(elapsedTime * 0.1) * 10;
-
+  planetMeshes.forEach((planet, index) => {
+    planet.rotation.y += planets[index].speed * 1.2;
+    planet.position.x = Math.sin(planet.rotation.y) * planets[index].distance;
+    planet.position.z = Math.cos(planet.rotation.y) * planets[index].distance;
+    planet.children &&
+      planet.children.forEach((moon, moonIndex) => {
+        moon.rotation.y += planets[index].moons[moonIndex].speed;
+        moon.position.x =
+          Math.sin(moon.rotation.y) * planets[index].moons[moonIndex].distance;
+        moon.position.z =
+          Math.cos(moon.rotation.y) * planets[index].moons[moonIndex].distance;
+      });
+  });
   controls.update();
   renderer.render(scene, camera);
   window.requestAnimationFrame(renderloop);
